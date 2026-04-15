@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мировое Время</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #00d9ff;
+            text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .map-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .world-map {
+            width: 100%;
+            height: 500px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .world-map svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .timezone-region {
+            fill: rgba(0, 217, 255, 0.1);
+            stroke: rgba(0, 217, 255, 0.3);
+            stroke-width: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .timezone-region:hover {
+            fill: rgba(0, 217, 255, 0.3);
+            stroke: #00d9ff;
+            stroke-width: 1;
+        }
+
+        .timezone-region.active {
+            fill: rgba(0, 217, 255, 0.4);
+            stroke: #00d9ff;
+            stroke-width: 1.5;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .city-name {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: #00d9ff;
+        }
+
+        .timezone-name {
+            font-size: 1.2rem;
+            color: #a0a0a0;
+            margin-bottom: 30px;
+        }
+
+        .clock {
+            font-size: 4rem;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
+            margin-bottom: 20px;
+        }
+
+        .date {
+            font-size: 1.2rem;
+            color: #a0a0a0;
+            margin-bottom: 30px;
+        }
+
+        .offset-info {
+            background: rgba(0, 217, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .offset-label {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+
+        .offset-value {
+            font-size: 1.3rem;
+            color: #00d9ff;
+        }
+
+        .instructions {
+            text-align: center;
+            padding: 20px;
+            color: #a0a0a0;
+            margin-top: 30px;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌍 Мировое Время</h1>
+            <p class="subtitle">Выберите регион на карте для просмотра местного времени</p>
+        </header>
+
+        <div class="main-content">
+            <div class="map-container">
+                <div class="world-map" id="worldMap"></div>
+            </div>
+
+            <div class="info-panel">
+                <h2 class="city-name" id="cityName">Выберите город</h2>
+                <p class="timezone-name" id="timezoneName">Нажмите на карту</p>
+                <div class="clock" id="clock">--:--:--</div>
+                <div class="date" id="date">--.--.----</div>
+                <div class="offset-info">
+                    <div class="offset-label">Смещение от UTC</div>
+                    <div class="offset-value" id="offset">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <p>💡 Кликните на любой регион карты, чтобы увидеть время в этом часовом поясе</p>
+        </div>
+    </div>
+
+    <script>
+        // Данные о городах и их часовых поясах
+        const cities = [
+            { name: "Лондон", timezone: "Europe/London", lat: 51.5074, lng: -0.1278 },
+            { name: "Париж", timezone: "Europe/Paris", lat: 48.8566, lng: 2.3522 },
+            { name: "Берлин", timezone: "Europe/Berlin", lat: 52.52, lng: 13.405 },
+            { name: "Москва", timezone: "Europe/Moscow", lat: 55.7558, lng: 37.6173 },
+            { name: "Нью-Йорк", timezone: "America/New_York", lat: 40.7128, lng: -74.006 },
+            { name: "Лос-Анджелес", timezone: "America/Los_Angeles", lat: 34.0522, lng: -118.2437 },
+            { name: "Чикаго", timezone: "America/Chicago", lat: 41.8781, lng: -87.6298 },
+            { name: "Токио", timezone: "Asia/Tokyo", lat: 35.6762, lng: 139.6503 },
+            { name: "Пекин", timezone: "Asia/Shanghai", lat: 39.9042, lng: 116.4074 },
+            { name: "Шанхай", timezone: "Asia/Shanghai", lat: 31.2304, lng: 121.4737 },
+            { name: "Дубай", timezone: "Asia/Dubai", lat: 25.2048, lng: 55.2708 },
+            { name: "Мумбаи", timezone: "Asia/Kolkata", lat: 19.076, lng: 72.8777 },
+            { name: "Сидней", timezone: "Australia/Sydney", lat: -33.8688, lng: 151.2093 },
+            { name: "Мельбурн", timezone: "Australia/Melbourne", lat: -37.8136, lng: 144.9631 },
+            { name: "Сан-Паулу", timezone: "America/Sao_Paulo", lat: -23.5505, lng: -46.6333 },
+            { name: "Буэнос-Айрес", timezone: "America/Argentina/Buenos_Aires", lat: -34.6037, lng: -58.3816 },
+            { name: "Йоханнесбург", timezone: "Africa/Johannesburg", lat: -26.2041, lng: 28.0473 },
+            { name: "Каир", timezone: "Africa/Cairo", lat: 30.0444, lng: 31.2357 },
+            { name: "Сингапур", timezone: "Asia/Singapore", lat: 1.3521, lng: 103.8198 },
+            { name: "Гонконг", timezone: "Asia/Hong_Kong", lat: 22.3193, lng: 114.1694 },
+            { name: "Сеул", timezone: "Asia/Seoul", lat: 37.5665, lng: 126.978 },
+            { name: "Бангкок", timezone: "Asia/Bangkok", lat: 13.7563, lng: 100.5018 },
+            { name: "Джакарта", timezone: "Asia/Jakarta", lat: -6.2088, lng: 106.8456 },
+            { name: "Ванкувер", timezone: "America/Vancouver", lat: 49.2827, lng: -123.1207 },
+            { name: "Торонто", timezone: "America/Toronto", lat: 43.6532, lng: -79.3832 },
+            { name: "Мехико", timezone: "America/Mexico_City", lat: 19.4326, lng: -99.1332 },
+            { name: "Лима", timezone: "America/Lima", lat: -12.0464, lng: -77.0428 },
+            { name: "Богота", timezone: "America/Bogota", lat: 4.711, lng: -74.0721 },
+            { name: "Лагос", timezone: "Africa/Lagos", lat: 6.5244, lng: 3.3792 },
+            { name: "Найроби", timezone: "Africa/Nairobi", lat: -1.2921, lng: 36.8219 },
+            { name: "Рим", timezone: "Europe/Rome", lat: 41.9028, lng: 12.4964 },
+            { name: "Мадрид", timezone: "Europe/Madrid", lat: 40.4168, lng: -3.7038 },
+            { name: "Амстердам", timezone: "Europe/Amsterdam", lat: 52.3676, lng: 4.9041 },
+            { name: "Стокгольм", timezone: "Europe/Stockholm", lat: 59.3293, lng: 18.0686 },
+            { name: "Осло", timezone: "Europe/Oslo", lat: 59.9139, lng: 10.7522 },
+            { name: "Хельсинки", timezone: "Europe/Helsinki", lat: 60.1699, lng: 24.9384 },
+            { name: "Варшава", timezone: "Europe/Warsaw", lat: 52.2297, lng: 21.0122 },
+            { name: "Киев", timezone: "Europe/Kiev", lat: 50.4501, lng: 30.5234 },
+            { name: "Стамбул", timezone: "Europe/Istanbul", lat: 41.0082, lng: 28.9784 },
+            { name: "Тегеран", timezone: "Asia/Tehran", lat: 35.6892, lng: 51.389 },
+            { name: "Эр-Рияд", timezone: "Asia/Riyadh", lat: 24.7136, lng: 46.6753 },
+            { name: "Карачи", timezone: "Asia/Karachi", lat: 24.8607, lng: 67.0011 },
+            { name: "Дакка", timezone: "Asia/Dhaka", lat: 23.8103, lng: 90.4125 },
+            { name: "Хошимин", timezone: "Asia/Ho_Chi_Minh", lat: 10.8231, lng: 106.6297 },
+            { name: "Манила", timezone: "Asia/Manila", lat: 14.5995, lng: 120.9842 },
+            { name: "Куала-Лумпур", timezone: "Asia/Kuala_Lumpur", lat: 3.139, lng: 101.6869 },
+            { name: "Окленд", timezone: "Pacific/Auckland", lat: -36.8485, lng: 174.7633 },
+            { name: "Гонолулу", timezone: "Pacific/Honolulu", lat: 21.3099, lng: -157.8581 },
+            { name: "Аляска", timezone: "America/Anchorage", lat: 61.2181, lng: -149.9003 },
+            { name: "Владивосток", timezone: "Asia/Vladivostok", lat: 43.1056, lng: 131.8735 },
+            { name: "Екатеринбург", timezone: "Asia/Yekaterinburg", lat: 56.8389, lng: 60.6057 },
+            { name: "Новосибирск", timezone: "Asia/Novosibirsk", lat: 55.0084, lng: 82.9357 },
+            { name: "Иркутск", timezone: "Asia/Irkutsk", lat: 52.2978, lng: 104.2964 }
+        ];
+
+        let selectedCity = null;
+        let clockInterval = null;
+
+        // Упрощенная карта мира (континенты)
+        const worldMapSVG = `
+            <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+                <!-- Северная Америка -->
+                <path class="timezone-region" data-timezone="America/New_York" d="M50,80 L150,60 L200,100 L180,150 L120,180 L80,150 Z"/>
+                <path class="timezone-region" data-timezone="America/Los_Angeles" d="M30,100 L80,90 L100,140 L60,160 L40,130 Z"/>
+                <path class="timezone-region" data-timezone="America/Chicago" d="M100,120 L150,110 L170,150 L130,170 L110,140 Z"/>
+                <path class="timezone-region" data-timezone="America/Vancouver" d="M40,60 L90,50 L110,90 L70,100 Z"/>
+                <path class="timezone-region" data-timezone="America/Mexico_City" d="M80,180 L140,170 L160,210 L120,230 L90,200 Z"/>
+                <path class="timezone-region" data-timezone="America/Anchorage" d="M10,20 L60,10 L80,50 L40,60 Z"/>
+                
+                <!-- Южная Америка -->
+                <path class="timezone-region" data-timezone="America/Sao_Paulo" d="M180,250 L240,240 L260,300 L220,340 L190,290 Z"/>
+                <path class="timezone-region" data-timezone="America/Argentina/Buenos_Aires" d="M200,320 L240,310 L250,360 L220,380 Z"/>
+                <path class="timezone-region" data-timezone="America/Lima" d="M140,220 L180,210 L190,260 L160,270 Z"/>
+                <path class="timezone-region" data-timezone="America/Bogota" d="M150,190 L180,185 L185,210 L160,215 Z"/>
+                
+                <!-- Европа -->
+                <path class="timezone-region" data-timezone="Europe/London" d="M420,90 L440,85 L445,110 L425,115 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Paris" d="M445,100 L470,95 L475,120 L450,125 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Berlin" d="M470,90 L500,85 L505,115 L475,120 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Moscow" d="M550,70 L620,60 L640,110 L580,120 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Rome" d="M465,125 L485,120 L490,145 L470,150 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Madrid" d="M410,115 L440,110 L445,140 L415,145 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Amsterdam" d="M455,85 L470,82 L472,95 L457,98 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Stockholm" d="M485,60 L510,55 L515,85 L490,90 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Oslo" d="M470,55 L490,50 L495,75 L475,80 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Helsinki" d="M530,55 L555,50 L560,75 L535,80 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Warsaw" d="M495,85 L520,80 L525,105 L500,110 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Kiev" d="M525,85 L555,80 L560,105 L530,110 Z"/>
+                <path class="timezone-region" data-timezone="Europe/Istanbul" d="M535,120 L560,115 L565,140 L540,145 Z"/>
+                
+                <!-- Африка -->
+                <path class="timezone-region" data-timezone="Africa/Cairo" d="M520,145 L560,140 L570,170 L530,175 Z"/>
+                <path class="timezone-region" data-timezone="Africa/Lagos" d="M450,180 L490,175 L500,210 L460,215 Z"/>
+                <path class="timezone-region" data-timezone="Africa/Johannesburg" d="M500,280 L550,275 L560,320 L510,325 Z"/>
+                <path class="timezone-region" data-timezone="Africa/Nairobi" d="M540,200 L570,195 L580,230 L550,235 Z"/>
+                
+                <!-- Азия -->
+                <path class="timezone-region" data-timezone="Asia/Dubai" d="M580,150 L610,145 L620,170 L590,175 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Kolkata" d="M640,160 L680,155 L690,200 L650,205 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Shanghai" d="M750,130 L800,125 L810,170 L760,175 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Tokyo" d="M830,120 L860,115 L870,150 L840,155 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Seoul" d="M810,125 L830,120 L835,145 L815,150 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Bangkok" d="M720,180 L750,175 L760,210 L730,215 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Singapore" d="M730,220 L750,218 L752,235 L732,237 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Jakarta" d="M720,240 L760,235 L770,260 L730,265 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Manila" d="M790,200 L810,195 L815,225 L795,230 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Hong_Kong" d="M785,165 L800,163 L802,178 L787,180 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Kuala_Lumpur" d="M740,210 L760,208 L762,225 L742,227 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Tehran" d="M590,130 L620,125 L630,150 L600,155 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Riyadh" d="M560,155 L590,150 L600,180 L570,185 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Karachi" d="M620,145 L650,140 L660,170 L630,175 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Dhaka" d="M690,155 L720,150 L730,180 L700,185 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Ho_Chi_Minh" d="M740,190 L765,185 L770,215 L745,220 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Vladivostok" d="M870,100 L910,95 L920,130 L880,135 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Yekaterinburg" d="M650,70 L690,65 L700,100 L660,105 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Novosibirsk" d="M700,70 L740,65 L750,100 L710,105 Z"/>
+                <path class="timezone-region" data-timezone="Asia/Irkutsk" d="M780,80 L820,75 L830,110 L790,115 Z"/>
+                
+                <!-- Океания -->
+                <path class="timezone-region" data-timezone="Australia/Sydney" d="M850,320 L890,315 L900,350 L860,355 Z"/>
+                <path class="timezone-region" data-timezone="Australia/Melbourne" d="M860,355 L890,350 L895,375 L865,380 Z"/>
+                <path class="timezone-region" data-timezone="Pacific/Auckland" d="M940,380 L960,375 L965,405 L945,410 Z"/>
+                <path class="timezone-region" data-timezone="Pacific/Honolulu" d="M200,200 L230,195 L235,220 L205,225 Z"/>
+            </svg>
+        `;
+
+        function init() {
+            document.getElementById('worldMap').innerHTML = worldMapSVG;
+            
+            // Добавляем обработчики кликов на регионы
+            document.querySelectorAll('.timezone-region').forEach(region => {
+                region.addEventListener('click', function() {
+                    const timezone = this.getAttribute('data-timezone');
+                    selectTimezone(timezone);
+                    
+                    // Обновляем активный класс
+                    document.querySelectorAll('.timezone-region').forEach(r => r.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Выбираем первый город по умолчанию
+            selectCity(cities[0]);
+        }
+
+        function selectTimezone(timezone) {
+            const city = cities.find(c => c.timezone === timezone);
+            if (city) {
+                selectCity(city);
+            }
+        }
+
+        function selectCity(city) {
+            selectedCity = city;
+            document.getElementById('cityName').textContent = city.name;
+            document.getElementById('timezoneName').textContent = city.timezone;
+            updateClock();
+            
+            if (clockInterval) {
+                clearInterval(clockInterval);
+            }
+            clockInterval = setInterval(updateClock, 1000);
+        }
+
+        function updateClock() {
+            if (!selectedCity) return;
+
+            const now = new Date();
+            const options = {
+                timeZone: selectedCity.timezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            const dateOptions = {
+                timeZone: selectedCity.timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            };
+
+            const timeString = new Intl.DateTimeFormat('ru-RU', options).format(now);
+            const dateString = new Intl.DateTimeFormat('ru-RU', dateOptions).format(now);
+            
+            // Получаем смещение
+            const tzString = now.toLocaleString('en-US', { timeZone: selectedCity.timezone });
+            const utcString = now.toLocaleString('en-US', { timeZone: 'UTC' });
+            
+            const tzDate = new Date(tzString);
+            const utcDate = new Date(utcString);
+            
+            let offsetMs = tzDate.getTime() - utcDate.getTime();
+            let offsetHours = offsetMs / (1000 * 60 * 60);
+            
+            const offsetSign = offsetHours >= 0 ? '+' : '';
+            const offsetFormatted = `UTC${offsetSign}${offsetHours}`;
+
+            document.getElementById('clock').textContent = timeString;
+            document.getElementById('date').textContent = dateString;
+            document.getElementById('offset').textContent = offsetFormatted;
+        }
+
+        // Инициализация при загрузке
+        init();
+    </script>
+</body>
+</html>
